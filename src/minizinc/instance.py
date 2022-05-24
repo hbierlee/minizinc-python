@@ -752,9 +752,6 @@ class Instance(Model):
                 tmp["_checker"] = statistics.pop("_checker")
 
             solution = self.output_type(**tmp)
-            statistics["time"] = obj["time"]
-        elif obj["type"] == "time":
-            statistics["time"] = obj["time"]
         elif obj["type"] == "statistics":
             for key, val in obj["statistics"].items():
                 set_stat(statistics, key, str(val))
@@ -767,6 +764,8 @@ class Instance(Model):
                 # TODO: can we ensure this is made JSON?
                 statistics["_checker"] = obj["output"]["dzn"]
 
+        if "time" in obj:
+            statistics["time"] = timedelta(microseconds=obj["time"])
         return solution, status, statistics
 
 
