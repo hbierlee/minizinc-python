@@ -765,7 +765,7 @@ class Instance(Model):
                 statistics["_checker"] = obj["output"]["dzn"]
 
         if "time" in obj:
-            statistics["time"] = timedelta(microseconds=obj["time"])
+            statistics["time"] = timedelta(milliseconds=obj["time"])
         return solution, status, statistics
 
 
