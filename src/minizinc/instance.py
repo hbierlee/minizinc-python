@@ -103,6 +103,7 @@ class Instance(Model):
     def solve(
         self,
         timeout: Optional[timedelta] = None,
+        memoryout: Optional[int] = None,
         nr_solutions: Optional[int] = None,
         processes: Optional[int] = None,
         random_seed: Optional[int] = None,
@@ -123,6 +124,8 @@ class Instance(Model):
         Args:
             timeout (Optional[timedelta]): Set the time limit for the process of
                 solving the instance.
+            memoryout (Optional[timedelta]): Set the memory limit (in MB) for the process of
+                solving the instance. (MiniZinc needs at least 800MB to function).
             nr_solutions (Optional[int]): The requested number of solution.
                 (Only available on satisfaction problems and when the ``-n``
                 flag is supported by the solver).
@@ -168,6 +171,7 @@ class Instance(Model):
         """
         coroutine = self.solve_async(
             timeout=timeout,
+            memoryout=memoryout,
             nr_solutions=nr_solutions,
             processes=processes,
             random_seed=random_seed,
@@ -197,6 +201,7 @@ class Instance(Model):
     async def solve_async(
         self,
         timeout: Optional[timedelta] = None,
+        memoryout: Optional[int] = None,
         nr_solutions: Optional[int] = None,
         processes: Optional[int] = None,
         random_seed: Optional[int] = None,
@@ -234,6 +239,7 @@ class Instance(Model):
 
         async for result in self.solutions(
             timeout=timeout,
+            memoryout=memoryout,
             nr_solutions=nr_solutions,
             processes=processes,
             random_seed=random_seed,
@@ -255,6 +261,7 @@ class Instance(Model):
     async def solutions(
         self,
         timeout: Optional[timedelta] = None,
+        memoryout: Optional[int] = None,
         nr_solutions: Optional[int] = None,
         processes: Optional[int] = None,
         random_seed: Optional[int] = None,
@@ -338,6 +345,9 @@ class Instance(Model):
         if optimisation_level is not None:
             cmd.extend(["-O", str(optimisation_level)])
 
+        if memoryout is not None and memoryout < 800:
+            raise ValueError(f"MiniZinc will not function with memory limits of 800MB (but was given {memoryout}")
+
         # Set time limit for the MiniZinc solving
         if timeout is not None:
             cmd.extend(["--time-limit", str(int(timeout.total_seconds() * 1000))])
@@ -372,8 +382,10 @@ class Instance(Model):
             status_changed = False
 
             try:
+                proc = None
+
                 # Run the MiniZinc process
-                proc = await self._driver._create_process(cmd, solver=solver)
+                proc = await self._driver._create_process(cmd, solver=solver, memoryout=memoryout)
                 assert isinstance(proc.stderr, asyncio.StreamReader)
                 assert isinstance(proc.stdout, asyncio.StreamReader)
 
@@ -431,8 +443,9 @@ class Instance(Model):
                 # Process was cancelled by the user, a MiniZincError occurred, or
                 # an unexpected Python exception occurred
                 # First, terminate the process
-                proc.terminate()
-                _ = await proc.wait()
+                if proc is not None:
+                    proc.terminate()
+                    _ = await proc.wait()
                 # Then, reraise the error that occurred
                 raise
 

@@ -2,6 +2,7 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+import resource
 import os
 import platform
 import re
@@ -167,6 +168,7 @@ class Driver:
         self,
         args: List[Union[str, Path]],
         solver: Optional[Solver] = None,
+        memoryout: Optional[int] = None,
     ):
         """Start a driver process with given arguments
 
@@ -196,6 +198,11 @@ class Driver:
 
         args.append("--json-stream")
 
+        def limit_virtual_memory():
+            if memoryout is not None:
+                resource.setrlimit(resource.RLIMIT_AS, (memoryout * 1024 * 1024, resource.RLIM_INFINITY))
+
+
         if solver is None:
             cmd = [str(self._executable), "--allow-multiple-assignments"] + [
                 str(arg) for arg in args
@@ -206,6 +213,7 @@ class Driver:
                 stdin=None,
                 stdout=PIPE,
                 stderr=PIPE,
+                preexec_fn=limit_virtual_memory,
                 **windows_spawn_options,
             )
         else:
@@ -222,6 +230,7 @@ class Driver:
                     stdin=None,
                     stdout=PIPE,
                     stderr=PIPE,
+                    preexec_fn=limit_virtual_memory,
                     **windows_spawn_options,
                 )
         if output.returncode != 0:
@@ -232,7 +241,7 @@ class Driver:
         return output
 
     async def _create_process(
-        self, args: List[Union[str, Path]], solver: Optional[str] = None
+        self, args: List[Union[str, Path]], solver: Optional[str] = None, memoryout: Optional[int] = None
     ) -> Process:
         """Start an asynchronous driver process with given arguments
 
@@ -255,6 +264,10 @@ class Driver:
 
         args.append("--json-stream")
 
+        def limit_virtual_memory():
+            if memoryout is not None:
+                resource.setrlimit(resource.RLIMIT_AS, (memoryout * 1024 * 1024, resource.RLIM_INFINITY))
+
         if solver is None:
             minizinc.logger.debug(
                 f"CLIDriver:create_process -> program: {str(self._executable)} "
@@ -268,6 +281,7 @@ class Driver:
                 stdin=None,
                 stdout=PIPE,
                 stderr=PIPE,
+                preexec_fn=limit_virtual_memory,
                 **windows_spawn_options,
             )
         else:
@@ -285,6 +299,7 @@ class Driver:
                 stdin=None,
                 stdout=PIPE,
                 stderr=PIPE,
+                preexec_fn=limit_virtual_memory,
                 **windows_spawn_options,
             )
         return proc

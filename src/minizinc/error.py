@@ -34,6 +34,16 @@ class ConfigurationError(Exception):
 
     message: str
 
+class MemoryError(Exception):
+    """Exception raised for errors caused by a MiniZinc Driver
+
+    Attributes:
+        location (Optional[Location]): File location of the error
+        message (str): Explanation of the error
+    """
+
+    def __init__(self):
+        super().__init__("Out-Of-Memory error: MiniZinc used more memory than the given memoryout.")
 
 class MiniZincError(Exception):
     """Exception raised for errors caused by a MiniZinc Driver
@@ -111,6 +121,7 @@ def parse_error(error_txt: bytes) -> MiniZincError:
 
     """
     error = MiniZincError
+    message = None
     if b"MiniZinc: evaluation error:" in error_txt:
         error = EvaluationError
         if b"Assertion failed:" in error_txt:
@@ -119,6 +130,8 @@ def parse_error(error_txt: bytes) -> MiniZincError:
         error = TypeError
     elif b"Error: syntax error" in error_txt:
         error = SyntaxError
+    elif b"std::bad_alloc" in error_txt:
+        return MemoryError()
 
     location = None
     match = re.search(rb"([^\s]+):(\d+)(.(\d+)-(\d+))?:\s", error_txt)

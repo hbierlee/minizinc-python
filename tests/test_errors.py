@@ -11,6 +11,7 @@ from minizinc.error import (
     EvaluationError,
     MiniZincError,
     SyntaxError,
+    MemoryError,
     TypeError,
 )
 
@@ -33,6 +34,17 @@ class AssertionTest(InstanceTestCase):
         if minizinc.default_driver.parsed_version >= (2, 6, 0):
             assert loc.columns == (27, 62)
 
+class MemoryError(InstanceTestCase):
+    code = """
+        % allocate >800MB of memory
+        array[1..100000000] of var int: a;
+    """
+
+    def test_memory_error(self):
+        # TODO why is importing the error throwing `TypeError: expected exception must be a BaseException type, not MemoryError`?
+        # TODO allocating less will actually throw an internal MiniZincError "out of memory" 
+        with pytest.raises(minizinc.error.MemoryError, match="Out-Of-Memory") as error:
+            self.instance.solve(memoryout=800)
 
 class TypeErrorTest(InstanceTestCase):
     code = """
